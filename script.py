@@ -28,7 +28,7 @@ class Deps:
 provider = OpenRouterProvider(
     api_key=os.getenv('OPEN_ROUTER_KEY'),
 )
-model = OpenAIChatModel('inclusionai/ling-3.1-flash', provider=provider)
+model = OpenAIChatModel('apodex/apodex-1.1-mini:free', provider=provider)
 
 weather_agent = Agent(
     model,
@@ -54,14 +54,14 @@ async def get_lat_lng(ctx: RunContext[Deps], location_description: str) -> LatLn
     """
     r = await ctx.deps.client.get(
         'https://api.weatherapi.com/v1/forecast.json',
-        params={'key':os.getenv('WEATHER_KEY'),'q': location_description,'days': 1, 'aqi': 'no'},
+        params={'key':os.getenv('WEATHER_KEY'),'q': location_description,'days': 2, 'aqi': 'no'},
     )
     r.raise_for_status()
     return LatLng.model_validate_json(r.content)
 
 
 @weather_agent.tool
-async def get_weather(ctx: RunContext[Deps], lat: float, lng: float) -> dict[str, Any]:
+async def get_weather(ctx: RunContext[Deps], lat: float, lng: float,location_description: str) -> dict[str, Any]:
     """Get the weather at a location.
 
     Args:
@@ -72,11 +72,11 @@ async def get_weather(ctx: RunContext[Deps], lat: float, lng: float) -> dict[str
     temp_response, descr_response = await asyncio.gather(
         ctx.deps.client.get(
             'https://api.weatherapi.com/v1/forecast.json',
-            params={'key':os.getenv('WEATHER_KEY'),'min': 10, 'max': 30},
+                    params={'key':os.getenv('WEATHER_KEY'),'q': location_description,'days':2, 'aqi': 'no'},
         ),
         ctx.deps.client.get(
             'https://api.weatherapi.com/v1/forecast.json',
-            params={'key':os.getenv('WEATHER_KEY'),'lat': lat, 'lng': lng},
+                    params={'key':os.getenv('WEATHER_KEY'),'q': location_description,'days': 2, 'aqi': 'no'},
         ),
     )
     temp_response.raise_for_status()
@@ -92,7 +92,7 @@ async def main():
         logfire.instrument_httpx(client, capture_all=True)
         deps = Deps(client=client)
         result = await weather_agent.run(
-            'What is the weather like in London and in Wiltshire?', deps=deps
+            'What is the weather like in Tunisia Tomorrow and in Canada?', deps=deps
         )
         print('Response:', result.output)
 
